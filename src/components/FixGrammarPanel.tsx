@@ -7,7 +7,7 @@ type FixGrammarResponse = {
   response: string
 }
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
+const apiBaseUrl = 'http://localhost:8888'
 
 
 function buildFixGrammarUrl(sessionId: string) {
