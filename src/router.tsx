@@ -1,5 +1,6 @@
 import { Navigate, createBrowserRouter } from 'react-router-dom'
 import App from './App'
+import { AskPage } from './pages/AskPage'
 import { FixGrammarPage } from './pages/FixGrammarPage'
 import { HomePage } from './pages/HomePage'
 
@@ -15,6 +16,10 @@ export const router = createBrowserRouter(
         {
           index: true,
           element: <HomePage />,
+        },
+        {
+          path: 'tools/ask',
+          element: <AskPage />,
         },
         {
           path: 'tools/fix-grammar',

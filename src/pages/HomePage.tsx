@@ -5,10 +5,22 @@ export function HomePage() {
   return (
     <section className="home-page">
       <header className="home-page__hero">
-        <p className="home-page__eyebrow">Agent Framework</p>
+        <p className="home-page__eyebrow">AI Tools using Agent Framework</p>
       </header>
 
       <section className="home-page__tools" aria-label="Available tools">
+        <article className="tool-card">
+          <Link
+            to="/tools/ask"
+            className="tool-card__icon-button tool-card__icon-button--ask"
+            aria-label="Open Ask tool"
+          >
+            <span aria-hidden="true">?</span>
+          </Link>
+          <h2>Ask Assistant</h2>
+          <p>Ask any question and continue follow-ups in the same assistant session.</p>
+        </article>
+
         <article className="tool-card">
           <Link
             to="/tools/fix-grammar"

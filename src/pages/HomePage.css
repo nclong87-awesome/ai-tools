@@ -130,6 +130,12 @@
   outline-offset: 3px;
 }
 
+.tool-card__icon-button--ask {
+  background:
+    radial-gradient(circle at 72% 25%, rgba(106, 161, 80, 0.45), rgba(106, 161, 80, 0)),
+    linear-gradient(150deg, #ffffff, #ecf5e7);
+}
+
 .tool-card--soon {
   border-style: dashed;
   background: rgba(255, 255, 255, 0.58);
