@@ -1,0 +1,11 @@
+.app-shell {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  padding: clamp(18px, 5vw, 48px);
+  box-sizing: border-box;
+  background:
+    radial-gradient(circle at 10% 12%, rgba(255, 153, 102, 0.2), transparent 36%),
+    radial-gradient(circle at 85% 4%, rgba(76, 188, 255, 0.18), transparent 34%);
+}
