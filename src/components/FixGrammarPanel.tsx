@@ -7,11 +7,8 @@ type FixGrammarResponse = {
   response: string
 }
 
-const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
-const apiBaseUrl =
-  (configuredApiBaseUrl && configuredApiBaseUrl.length > 0
-    ? configuredApiBaseUrl
-    : '/api').replace(/\/$/, '')
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
+
 
 function buildFixGrammarUrl(sessionId: string) {
   const query = new URLSearchParams()
