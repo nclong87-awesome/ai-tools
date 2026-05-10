@@ -114,12 +114,7 @@ export function FixGrammarPanel() {
   return (
     <section className="fix-grammar-panel" aria-live="polite">
       <header className="fix-grammar-panel__header">
-        <p className="fix-grammar-panel__eyebrow">Agent Framework</p>
-        <h1>Fix grammar</h1>
-        <p>
-          Submit text to <strong>/grammar</strong> and reuse the returned session for
-          follow-up edits.
-        </p>
+        <p className="fix-grammar-panel__eyebrow">Fix grammar</p>
       </header>
 
       <form className="fix-grammar-panel__form" onSubmit={handleSubmit}>

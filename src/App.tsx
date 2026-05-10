@@ -1,10 +1,10 @@
 import './App.css'
-import { FixGrammarPanel } from './components/FixGrammarPanel'
+import { Outlet } from 'react-router-dom'
 
 function App() {
   return (
     <main className="app-shell">
-      <FixGrammarPanel />
+      <Outlet />
     </main>
   )
 }

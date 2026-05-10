@@ -1,0 +1,50 @@
+.fix-grammar-page {
+  width: min(920px, 100%);
+  margin: 0 auto;
+  display: grid;
+  gap: 0.8rem;
+  align-content: start;
+  animation: fix-grammar-page-reveal 0.45s ease-out;
+}
+
+.fix-grammar-page__toolbar {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.fix-grammar-page__home-link {
+  display: inline-flex;
+  gap: 0.45rem;
+  align-items: center;
+  border: 1px solid rgba(24, 87, 116, 0.2);
+  border-radius: 999px;
+  padding: 0.48rem 0.95rem;
+  text-decoration: none;
+  color: #184862;
+  background: rgba(255, 255, 255, 0.7);
+  font-weight: 600;
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+
+.fix-grammar-page__home-link:hover,
+.fix-grammar-page__home-link:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 14px rgba(24, 72, 98, 0.14);
+}
+
+.fix-grammar-page__home-link:focus-visible {
+  outline: 2px solid #1d6f95;
+  outline-offset: 2px;
+}
+
+@keyframes fix-grammar-page-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

@@ -1,11 +1,54 @@
 .app-shell {
+  position: relative;
+  isolation: isolate;
   min-height: 100svh;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
   width: 100%;
-  padding: clamp(18px, 5vw, 48px);
+  padding: clamp(14px, 4vw, 36px);
   box-sizing: border-box;
+  overflow: hidden;
   background:
-    radial-gradient(circle at 10% 12%, rgba(255, 153, 102, 0.2), transparent 36%),
-    radial-gradient(circle at 85% 4%, rgba(76, 188, 255, 0.18), transparent 34%);
+    linear-gradient(170deg, #fef7e4 0%, #f7fbff 65%, #fef4e7 100%),
+    radial-gradient(circle at 12% 8%, rgba(255, 146, 87, 0.32), transparent 38%),
+    radial-gradient(circle at 88% 9%, rgba(49, 145, 194, 0.32), transparent 36%);
+}
+
+.app-shell::before,
+.app-shell::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  border-radius: 999px;
+  z-index: -1;
+  animation: app-shell-float 16s ease-in-out infinite;
+}
+
+.app-shell::before {
+  width: min(42vw, 320px);
+  height: min(42vw, 320px);
+  top: min(10vh, 92px);
+  right: -120px;
+  background: radial-gradient(circle, rgba(248, 130, 74, 0.24), rgba(248, 130, 74, 0));
+}
+
+.app-shell::after {
+  width: min(48vw, 390px);
+  height: min(48vw, 390px);
+  left: -160px;
+  bottom: -180px;
+  background: radial-gradient(circle, rgba(24, 121, 166, 0.21), rgba(24, 121, 166, 0));
+  animation-delay: -8s;
+}
+
+@keyframes app-shell-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-16px);
+  }
 }
