@@ -1,10 +1,10 @@
 import './App.css'
-import { Outlet } from 'react-router-dom'
+import { AskPanel } from './components/AskPanel'
 
 function App() {
   return (
     <main className="app-shell">
-      <Outlet />
+      <AskPanel />
     </main>
   )
 }

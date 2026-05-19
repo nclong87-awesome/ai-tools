@@ -1,4 +1,5 @@
 .ask-panel {
+  width: min(100%, 860px);
   border: 1px solid var(--border);
   border-radius: 24px;
   padding: clamp(18px, 3.2vw, 30px);
@@ -9,7 +10,7 @@
 }
 
 .ask-panel__header {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .ask-panel__eyebrow {
@@ -21,9 +22,88 @@
   font-weight: 700;
 }
 
+.ask-panel__title {
+  font-size: clamp(1.35rem, 2.7vw, 1.9rem);
+  line-height: 1.15;
+}
+
+.ask-panel__feature-area {
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--accent-bg) 45%, #fff 55%);
+}
+
+.ask-panel__feature-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ask-panel__feature-trigger {
+  border: 1px dashed color-mix(in srgb, var(--accent) 56%, #7f7f7f 44%);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--text-h);
+  font-weight: 700;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.ask-panel__feature-trigger:hover {
+  border-style: solid;
+}
+
+.ask-panel__feature-current {
+  margin: 0;
+  font-size: 0.93rem;
+}
+
+.ask-panel__feature-menu {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.ask-panel__feature-option {
+  width: 100%;
+  text-align: left;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text-h);
+  cursor: pointer;
+  padding: 10px 12px;
+  display: grid;
+  gap: 2px;
+}
+
+.ask-panel__feature-option.is-selected {
+  border-color: color-mix(in srgb, var(--accent) 62%, #fff 38%);
+  background: color-mix(in srgb, var(--accent-bg) 65%, #fff 35%);
+}
+
+.ask-panel__feature-name {
+  font-weight: 700;
+}
+
+.ask-panel__feature-description {
+  font-size: 0.86rem;
+  color: color-mix(in srgb, var(--text) 78%, #fff 22%);
+}
+
+.ask-panel__last-used {
+  margin: 12px 0 0;
+  font-size: 0.85rem;
+  color: color-mix(in srgb, var(--text) 82%, #fff 18%);
+}
+
 .ask-panel__form {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .ask-panel__form label {
@@ -32,8 +112,7 @@
   color: var(--text-h);
 }
 
-.ask-panel__form textarea,
-.ask-panel__form input {
+.ask-panel__form textarea {
   width: 100%;
   box-sizing: border-box;
   border-radius: 12px;
@@ -46,7 +125,7 @@
 
 .ask-panel__form textarea {
   resize: vertical;
-  min-height: 140px;
+  min-height: 160px;
 }
 
 .ask-panel__actions {
@@ -147,6 +226,7 @@
 .ask-panel__meta {
   margin: 0 0 10px;
   font-size: 0.9rem;
+  color: color-mix(in srgb, var(--text-h) 74%, #fff 26%);
 }
 
 .ask-panel__result-label {
@@ -269,6 +349,11 @@
 @media (max-width: 640px) {
   .ask-panel {
     border-radius: 18px;
+  }
+
+  .ask-panel__feature-row {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .ask-panel__actions {
