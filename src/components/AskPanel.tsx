@@ -54,18 +54,6 @@ function getFeatureById(featureId: FeatureId): FeatureOption {
   return featureOptions.find((feature) => feature.id === featureId) ?? featureOptions[0]
 }
 
-function buildAskUrl(sessionId: string) {
-  const query = new URLSearchParams()
-  const trimmedSessionId = sessionId.trim()
-
-  if (trimmedSessionId) {
-    query.set('sessionId', trimmedSessionId)
-  }
-
-  const queryString = query.toString()
-  return `${apiBaseUrl}/ask${queryString ? `?${queryString}` : ''}`
-}
-
 export function AskPanel() {
   const [promptInput, setPromptInput] = useState('')
   const [sessionId, setSessionId] = useState('')
@@ -125,12 +113,12 @@ export function AskPanel() {
     setErrorMessage(null)
 
     try {
-      const response = await fetch(buildAskUrl(sessionId), {
+      const response = await fetch(`${apiBaseUrl}/ask`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ prompt: outboundPrompt }),
+        body: JSON.stringify({ prompt: outboundPrompt, sessionId }),
       })
 
       if (!response.ok) {
