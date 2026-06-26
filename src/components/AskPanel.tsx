@@ -9,8 +9,16 @@ import './AskPanel.css'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8888'
 
-function buildPromptWithSelectedTools(input: string, selectedToolIds: string[]): string {
+function buildPromptWithSelectedTools(
+  input: string,
+  selectedToolIds: string[],
+  currentSessionId: string,
+): string {
   if (selectedToolIds.length === 0) {
+    return input
+  }
+
+  if (currentSessionId.trim().length > 0) {
     return input
   }
 
@@ -73,7 +81,7 @@ export function AskPanel() {
       ? buildStructuredPrompt(activeFormTool, formValues)
       : trimmedPromptInput
 
-    const outboundPrompt = buildPromptWithSelectedTools(promptBody, selectedToolIds)
+    const outboundPrompt = buildPromptWithSelectedTools(promptBody, selectedToolIds, sessionId)
 
     setIsSubmitting(true)
     setErrorMessage(null)
