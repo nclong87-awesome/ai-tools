@@ -59,6 +59,36 @@ export function AskPanel() {
   const inputLabel = 'Prompt'
   const inputPlaceholder = 'Enter your question or request here...'
 
+  async function submitPrompt(prompt: string, sessionIdForRequest: string) {
+    setIsSubmitting(true)
+    setErrorMessage(null)
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/ask`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ prompt, sessionId: sessionIdForRequest }),
+      })
+
+      if (!response.ok) {
+        const details = await response.text()
+        throw new Error(details || `Request failed with status ${response.status}`)
+      }
+
+      const data = (await response.json()) as AskResponse
+      setResult(data)
+      setSessionId(data.sessionId)
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unexpected error while calling Ask endpoint.'
+      setErrorMessage(message)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const trimmedPromptInput = promptInput.trim()
@@ -83,33 +113,18 @@ export function AskPanel() {
 
     const outboundPrompt = buildPromptWithSelectedTools(promptBody, selectedToolIds, sessionId)
 
-    setIsSubmitting(true)
-    setErrorMessage(null)
+    await submitPrompt(outboundPrompt, sessionId)
+  }
 
-    try {
-      const response = await fetch(`${apiBaseUrl}/ask`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ prompt: outboundPrompt, sessionId }),
-      })
+  async function handleQuickAction(prompt: string) {
+    const trimmedPrompt = prompt.trim()
 
-      if (!response.ok) {
-        const details = await response.text()
-        throw new Error(details || `Request failed with status ${response.status}`)
-      }
-
-      const data = (await response.json()) as AskResponse
-      setResult(data)
-      setSessionId(data.sessionId)
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Unexpected error while calling Ask endpoint.'
-      setErrorMessage(message)
-    } finally {
-      setIsSubmitting(false)
+    if (!trimmedPrompt) {
+      setErrorMessage('Quick action is missing a prompt payload.')
+      return
     }
+
+    await submitPrompt(trimmedPrompt, sessionId)
   }
 
   function handleClear() {
@@ -185,7 +200,14 @@ export function AskPanel() {
         </p>
       ) : null}
 
-      {result ? <AskResult result={result} onCopyError={setErrorMessage} /> : null}
+      {result ? (
+        <AskResult
+          result={result}
+          onCopyError={setErrorMessage}
+          onQuickAction={handleQuickAction}
+          quickActionsDisabled={isSubmitting}
+        />
+      ) : null}
     </section>
   )
 }
