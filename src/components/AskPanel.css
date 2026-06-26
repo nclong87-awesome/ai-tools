@@ -514,6 +514,44 @@ textarea.ask-panel__tool-form-input {
   cursor: not-allowed;
 }
 
+.ask-panel__inline-copy-action,
+.ask-panel__inline-prompt-action {
+  display: inline-grid;
+  place-items: center;
+  vertical-align: middle;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--border) 66%);
+  border-radius: 8px;
+  width: 1.45rem;
+  height: 1.45rem;
+  padding: 0;
+  margin-left: 0.36rem;
+  background: color-mix(in srgb, var(--accent-bg) 28%, #fff 72%);
+  color: var(--text-h);
+  font: inherit;
+  font-size: 0.8rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ask-panel__inline-prompt-action {
+  min-width: auto;
+  width: auto;
+  padding: 0 0.36rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.ask-panel__inline-copy-action:hover:not(:disabled),
+.ask-panel__inline-prompt-action:hover:not(:disabled) {
+  filter: brightness(0.98);
+}
+
+.ask-panel__inline-copy-action:disabled,
+.ask-panel__inline-prompt-action:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .ask-panel__meta {
   margin: 0 0 10px;
   font-size: 0.9rem;

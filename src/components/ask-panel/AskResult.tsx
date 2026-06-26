@@ -1,6 +1,7 @@
-import { useState } from 'react'
-import ReactMarkdown from 'react-markdown'
+import { useMemo, useState } from 'react'
+import ReactMarkdown, { defaultUrlTransform } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { toast } from 'sonner'
 import type { AskResponse } from './types'
 
 type AskResultProps = {
@@ -13,6 +14,107 @@ type AskResultProps = {
 type QuickAction = {
   label: string
   prompt: string
+}
+
+const timestampFields = new Set(['created at', 'updated at'])
+const fieldLinePattern = /^(\s*(?:[-*]\s+)?)\*\*([^*]+):\*\*\s*(.*)$/
+const promptLinkPattern = /\s*\[[^\]]*\]\(prompt:[^)]+\)/gi
+
+function normalizeFieldValueForPrompt(value: string): string {
+  return value.replace(/\r\n?/g, '\n').replace(/\n/g, '\\n').trim()
+}
+
+function isEmptyFieldValue(value: string): boolean {
+  const trimmedValue = value.trim()
+  return trimmedValue.length === 0 || trimmedValue.toLowerCase() === 'null'
+}
+
+function rewriteResponseWithInlineCopyActions(rawContent: string): string {
+  const lines = rawContent.split('\n')
+  const rewrittenLines: string[] = []
+
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const line = lines[lineIndex]
+    const fieldMatch = line.match(fieldLinePattern)
+
+    if (!fieldMatch) {
+      rewrittenLines.push(line)
+      continue
+    }
+
+    const [, prefix, fieldLabel, rawValue] = fieldMatch
+    const trimmedFieldLabel = fieldLabel.trim()
+    const cleanedValue = rawValue.replace(promptLinkPattern, '').trimEnd()
+    const valueParts: string[] = []
+
+    if (cleanedValue.trim().length > 0) {
+      valueParts.push(cleanedValue)
+    }
+
+    let continuationIndex = lineIndex + 1
+    while (continuationIndex < lines.length) {
+      const continuationLine = lines[continuationIndex]
+      if (!continuationLine.trim()) {
+        break
+      }
+      if (fieldLinePattern.test(continuationLine)) {
+        break
+      }
+      if (/^\s*#{1,6}\s/.test(continuationLine)) {
+        break
+      }
+      if (/^\s*[-*_]{3,}\s*$/.test(continuationLine)) {
+        break
+      }
+
+      valueParts.push(continuationLine)
+      continuationIndex += 1
+    }
+
+    const combinedValue = valueParts.join('\n').trim()
+
+    const isListField = prefix.trim().length > 0
+    const hardBreakSuffix = isListField ? '' : '  '
+
+    if (timestampFields.has(trimmedFieldLabel.toLowerCase()) || isEmptyFieldValue(combinedValue)) {
+      rewrittenLines.push(
+        `${prefix}**${trimmedFieldLabel}:**${cleanedValue ? ` ${cleanedValue}` : ''}${hardBreakSuffix}`,
+      )
+    } else {
+      const promptPayload = normalizeFieldValueForPrompt(combinedValue)
+      const encodedPrompt = encodeURIComponent(`Copy to clipboard: ${promptPayload}`)
+      const valueSegment = cleanedValue ? ` ${cleanedValue}` : ''
+      rewrittenLines.push(
+        `${prefix}**${trimmedFieldLabel}:**${valueSegment} [⧉](prompt:${encodedPrompt})${hardBreakSuffix}`,
+      )
+    }
+
+    for (let copyIndex = lineIndex + 1; copyIndex < continuationIndex; copyIndex += 1) {
+      rewrittenLines.push(lines[copyIndex])
+    }
+
+    lineIndex = continuationIndex - 1
+  }
+
+  return rewrittenLines.join('\n')
+}
+
+function decodePromptPayload(href: string): string {
+  const encodedPrompt = href.slice('prompt:'.length)
+
+  try {
+    return decodeURIComponent(encodedPrompt)
+  } catch {
+    return encodedPrompt
+  }
+}
+
+function allowPromptUrlTransform(url: string): string {
+  if (url.startsWith('prompt:')) {
+    return url
+  }
+
+  return defaultUrlTransform(url)
 }
 
 function parseQuickActionBlock(rawContent: string): QuickAction | null {
@@ -50,6 +152,10 @@ export function AskResult({
 }: AskResultProps) {
   const [isCopying, setIsCopying] = useState(false)
   const [isCopied, setIsCopied] = useState(false)
+  const renderedResponse = useMemo(
+    () => rewriteResponseWithInlineCopyActions(result.response),
+    [result.response],
+  )
 
   async function handleCopyResponse() {
     if (!result.response) {
@@ -60,9 +166,30 @@ export function AskResult({
       setIsCopying(true)
       await navigator.clipboard.writeText(result.response)
       setIsCopied(true)
+      toast.success('Response copied to clipboard.')
       window.setTimeout(() => setIsCopied(false), 2000)
     } catch {
+      toast.error('Unable to copy response.')
       onCopyError('Unable to copy response. Please copy it manually.')
+    } finally {
+      setIsCopying(false)
+    }
+  }
+
+  async function handleCopyFieldValue(fieldValue: string) {
+    if (!fieldValue) {
+      return
+    }
+
+    try {
+      setIsCopying(true)
+      await navigator.clipboard.writeText(fieldValue)
+      setIsCopied(true)
+      toast.success('Field value copied to clipboard.')
+      window.setTimeout(() => setIsCopied(false), 2000)
+    } catch {
+      toast.error('Unable to copy field value.')
+      onCopyError('Unable to copy field value. Please copy it manually.')
     } finally {
       setIsCopying(false)
     }
@@ -76,8 +203,39 @@ export function AskResult({
       <div className="ask-panel__result-markdown">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
+          urlTransform={allowPromptUrlTransform}
           components={{
-            a: ({ ...props }) => <a {...props} target="_blank" rel="noopener noreferrer" />,
+            a: ({ href, children, ...props }) => {
+              if (typeof href === 'string' && href.startsWith('prompt:')) {
+                const promptPayload = decodePromptPayload(href)
+                const isInlineCopyAction = promptPayload
+                  .toLowerCase()
+                  .startsWith('copy to clipboard:')
+
+                return (
+                  <button
+                    type="button"
+                    className={
+                      isInlineCopyAction
+                        ? 'ask-panel__inline-copy-action'
+                        : 'ask-panel__inline-prompt-action'
+                    }
+                    onClick={() =>
+                      isInlineCopyAction
+                        ? handleCopyFieldValue(promptPayload.replace(/^copy to clipboard:/i, '').trim())
+                        : onQuickAction(promptPayload)
+                    }
+                    disabled={quickActionsDisabled}
+                    aria-label={isInlineCopyAction ? 'Copy field value' : 'Run quick action'}
+                    title={isInlineCopyAction ? 'Copy field value' : 'Run quick action'}
+                  >
+                    {isInlineCopyAction ? '⧉' : children}
+                  </button>
+                )
+              }
+
+              return <a href={href} {...props} target="_blank" rel="noopener noreferrer" />
+            },
             pre: ({ children, ...props }) => {
               const firstChild = Array.isArray(children) ? children[0] : children
               const childClassName =
@@ -123,7 +281,7 @@ export function AskResult({
             },
           }}
         >
-          {result.response}
+          {renderedResponse}
         </ReactMarkdown>
       </div>
       <div className="ask-panel__result-actions">
