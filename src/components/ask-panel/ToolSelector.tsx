@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faXmark, faAdd } from '@fortawesome/free-solid-svg-icons'
 import { loadMcpTools } from './toolCatalog'
+import { ToolMenu } from './ToolMenu'
 import type { ToolGroup, ToolOption, ToolSelectionChange } from './types'
 
 const lastUsedFeatureStorageKey = 'ask-panel:last-used-feature'
@@ -281,62 +282,16 @@ export function ToolSelector({ disabled, onSelectionChange }: ToolSelectorProps)
       ) : null}
 
       {isToolMenuOpen ? (
-        <div className="ask-panel__feature-menu-shell" id="tool-menu" aria-label="Available tools">
-          <input
-            id="featureFilterInput"
-            className="ask-panel__feature-search"
-            type="text"
-            placeholder="Filter by name or description"
-            value={toolFilter}
-            onChange={(event) => setToolFilter(event.target.value)}
-          />
-          <p className="ask-panel__feature-count">
-            Showing {filteredTools.length} of {toolOptions.length} tools
-          </p>
-          {filteredToolGroups.length > 0 ? (
-            <div className="ask-panel__feature-groups">
-              {filteredToolGroups.map((group) => (
-                <section key={group.id} className="ask-panel__feature-group">
-                  <button
-                    type="button"
-                    className="ask-panel__feature-group-toggle"
-                    onClick={() => handleToggleGroup(group.id)}
-                    aria-expanded={expandedGroupIds.includes(group.id)}
-                  >
-                    <span className="ask-panel__feature-group-title">{group.name}</span>
-                    <span
-                      className={`ask-panel__feature-group-caret${expandedGroupIds.includes(group.id) ? ' is-expanded' : ''}`}
-                      aria-hidden="true"
-                    >
-                      ▾
-                    </span>
-                  </button>
-                  {group.description ? (
-                    <p className="ask-panel__feature-group-description">{group.description}</p>
-                  ) : null}
-                  {expandedGroupIds.includes(group.id) ? (
-                    <ul className="ask-panel__feature-menu">
-                      {group.tools.map((tool) => (
-                        <li key={tool.id}>
-                          <button
-                            type="button"
-                            className={`ask-panel__feature-option${selectedToolIds.includes(tool.id) ? ' is-selected' : ''}`}
-                            onClick={() => handleToggleToolSelection(tool.id)}
-                          >
-                            <span className="ask-panel__feature-name">{tool.name}</span>
-                            <span className="ask-panel__feature-description">{tool.description}</span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
-                </section>
-              ))}
-            </div>
-          ) : (
-            <p className="ask-panel__feature-empty">No tools match your search.</p>
-          )}
-        </div>
+        <ToolMenu
+          toolFilter={toolFilter}
+          onToolFilterChange={setToolFilter}
+          filteredTools={filteredTools}
+          filteredToolGroups={filteredToolGroups}
+          expandedGroupIds={expandedGroupIds}
+          selectedToolIds={selectedToolIds}
+          onToggleGroup={handleToggleGroup}
+          onToggleToolSelection={handleToggleToolSelection}
+        />
       ) : null}
     </div>
   )
