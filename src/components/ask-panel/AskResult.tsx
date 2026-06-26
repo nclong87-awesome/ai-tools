@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import ReactMarkdown, { defaultUrlTransform } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { toast } from 'sonner'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faCopy } from '@fortawesome/free-solid-svg-icons'
 import type { AskResponse } from './types'
 
 type AskResultProps = {
@@ -229,7 +231,7 @@ export function AskResult({
                     aria-label={isInlineCopyAction ? 'Copy field value' : 'Run quick action'}
                     title={isInlineCopyAction ? 'Copy field value' : 'Run quick action'}
                   >
-                    {isInlineCopyAction ? '⧉' : children}
+                    {isInlineCopyAction ? <FontAwesomeIcon color="rgb(0, 0, 0, 0.5)" size="1x" icon={faCopy} aria-hidden="true" /> : children}
                   </button>
                 )
               }
