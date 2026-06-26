@@ -13,12 +13,23 @@ export type McpJsonRpcResponse = {
 export type McpTool = {
   name: string
   description?: string
+  inputSchema?: unknown
+}
+
+export type ToolParameter = {
+  name: string
+  type: string
+  isRequired: boolean
+  description: string
 }
 
 export type ToolOption = {
   id: string
   name: string
   description: string
+  requiresUserForm: boolean
+  formId: string | null
+  parameters: ToolParameter[]
 }
 
 export type ToolGroup = {
@@ -31,4 +42,9 @@ export type ToolGroup = {
 export type ToolCatalog = {
   toolOptions: ToolOption[]
   toolGroups: ToolGroup[]
+}
+
+export type ToolSelectionChange = {
+  toolIds: string[]
+  tools: ToolOption[]
 }

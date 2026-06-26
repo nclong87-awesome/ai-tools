@@ -2,14 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faXmark, faAdd } from '@fortawesome/free-solid-svg-icons'
 import { loadMcpTools } from './toolCatalog'
-import type { ToolGroup, ToolOption } from './types'
+import type { ToolGroup, ToolOption, ToolSelectionChange } from './types'
 
 const lastUsedFeatureStorageKey = 'ask-panel:last-used-feature'
 const selectedToolsStorageKey = 'ask-panel:selected-tools'
 
 type ToolSelectorProps = {
   disabled: boolean
-  onSelectionChange: (toolIds: string[]) => void
+  onSelectionChange: (selection: ToolSelectionChange) => void
 }
 
 function readLastUsedTool(): string | null {
@@ -102,10 +102,6 @@ export function ToolSelector({ disabled, onSelectionChange }: ToolSelectorProps)
     }
   }, [])
 
-  useEffect(() => {
-    onSelectionChange(selectedToolIds)
-  }, [onSelectionChange, selectedToolIds])
-
   const selectedTools = useMemo(() => {
     if (toolOptions.length === 0) {
       return []
@@ -115,6 +111,13 @@ export function ToolSelector({ disabled, onSelectionChange }: ToolSelectorProps)
       .map((toolId) => toolOptions.find((tool) => tool.id === toolId))
       .filter((tool): tool is ToolOption => tool !== undefined)
   }, [selectedToolIds, toolOptions])
+
+  useEffect(() => {
+    onSelectionChange({
+      toolIds: selectedToolIds,
+      tools: selectedTools,
+    })
+  }, [onSelectionChange, selectedToolIds, selectedTools])
 
   const filteredTools = useMemo(() => {
     const normalizedFilter = toolFilter.trim().toLowerCase()

@@ -1,4 +1,11 @@
-import type { McpJsonRpcResponse, McpTool, ToolCatalog, ToolGroup, ToolOption } from './types'
+import type {
+  McpJsonRpcResponse,
+  McpTool,
+  ToolCatalog,
+  ToolGroup,
+  ToolOption,
+  ToolParameter,
+} from './types'
 
 const mcpToolsUrl = import.meta.env.VITE_MCP_TOOLS_URL || 'http://localhost:5204/mcp'
 const mcpToolGroupsUrl =
@@ -48,11 +55,123 @@ function toDisplayToolName(toolName: string): string {
     .join(' ')
 }
 
+function normalizeParametersFromUnknown(rawParameters: unknown): ToolParameter[] {
+  if (!Array.isArray(rawParameters)) {
+    return []
+  }
+
+  return rawParameters
+    .map((rawParameter) => {
+      if (!rawParameter || typeof rawParameter !== 'object') {
+        return null
+      }
+
+      const parameter = rawParameter as {
+        name?: unknown
+        Name?: unknown
+        type?: unknown
+        Type?: unknown
+        isRequired?: unknown
+        IsRequired?: unknown
+        description?: unknown
+        Description?: unknown
+      }
+
+      const name =
+        (typeof parameter.name === 'string' && parameter.name) ||
+        (typeof parameter.Name === 'string' && parameter.Name) ||
+        ''
+
+      if (!name) {
+        return null
+      }
+
+      const type =
+        (typeof parameter.type === 'string' && parameter.type) ||
+        (typeof parameter.Type === 'string' && parameter.Type) ||
+        'string'
+
+      const isRequired =
+        (typeof parameter.isRequired === 'boolean' && parameter.isRequired) ||
+        (typeof parameter.IsRequired === 'boolean' && parameter.IsRequired) ||
+        false
+
+      const description =
+        (typeof parameter.description === 'string' && parameter.description) ||
+        (typeof parameter.Description === 'string' && parameter.Description) ||
+        ''
+
+      return {
+        name,
+        type,
+        isRequired,
+        description,
+      }
+    })
+    .filter((parameter): parameter is ToolParameter => parameter !== null)
+}
+
+function parametersFromInputSchema(inputSchema: unknown): ToolParameter[] {
+  if (!inputSchema || typeof inputSchema !== 'object') {
+    return []
+  }
+
+  const schema = inputSchema as {
+    properties?: unknown
+    required?: unknown
+  }
+
+  if (!schema.properties || typeof schema.properties !== 'object') {
+    return []
+  }
+
+  const requiredNames = new Set(
+    Array.isArray(schema.required)
+      ? schema.required.filter((name): name is string => typeof name === 'string')
+      : [],
+  )
+
+  const properties = schema.properties as Record<string, unknown>
+  const parameters: ToolParameter[] = []
+
+  for (const [name, rawProperty] of Object.entries(properties)) {
+    if (!rawProperty || typeof rawProperty !== 'object') {
+      continue
+    }
+
+    const property = rawProperty as {
+      type?: unknown
+      description?: unknown
+    }
+
+    const type =
+      typeof property.type === 'string'
+        ? property.type
+        : Array.isArray(property.type)
+          ? property.type.find((value): value is string => typeof value === 'string') || 'string'
+          : 'string'
+
+    parameters.push({
+      name,
+      type,
+      isRequired: requiredNames.has(name),
+      description: typeof property.description === 'string' ? property.description : '',
+    })
+  }
+
+  return parameters
+}
+
 function toToolOption(tool: McpTool): ToolOption {
+  const parameters = parametersFromInputSchema(tool.inputSchema)
+
   return {
     id: tool.name,
     name: toDisplayToolName(tool.name),
     description: tool.description || `Use ${toDisplayToolName(tool.name)} in the request context.`,
+    requiresUserForm: false,
+    formId: null,
+    parameters,
   }
 }
 
@@ -115,6 +234,12 @@ function normalizeGroupFromUnknown(rawGroup: unknown): ToolGroup | null {
         CodeName?: unknown
         description?: unknown
         Description?: unknown
+        requiresUserForm?: unknown
+        RequiresUserForm?: unknown
+        formId?: unknown
+        FormId?: unknown
+        parameters?: unknown
+        Parameters?: unknown
         tool?: { name?: unknown; description?: unknown }
       }
 
@@ -140,7 +265,24 @@ function normalizeGroupFromUnknown(rawGroup: unknown): ToolGroup | null {
         (tool.tool && typeof tool.tool.description === 'string' && tool.tool.description) ||
         undefined
 
-      return toToolOption({ name: toolName, description: toolDescription })
+      const requiresUserForm =
+        (typeof tool.requiresUserForm === 'boolean' && tool.requiresUserForm) ||
+        (typeof tool.RequiresUserForm === 'boolean' && tool.RequiresUserForm) ||
+        false
+
+      const formId =
+        (typeof tool.formId === 'string' && tool.formId) ||
+        (typeof tool.FormId === 'string' && tool.FormId) ||
+        null
+
+      const parameters = normalizeParametersFromUnknown(tool.parameters ?? tool.Parameters)
+
+      return {
+        ...toToolOption({ name: toolName, description: toolDescription }),
+        requiresUserForm,
+        formId,
+        parameters,
+      }
     })
     .filter((tool): tool is ToolOption => tool !== null)
 

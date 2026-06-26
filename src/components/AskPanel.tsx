@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { AskResult } from './ask-panel/AskResult'
+import { FormToolFields } from './ask-panel/FormToolFields'
 import { ToolSelector } from './ask-panel/ToolSelector'
-import type { AskResponse } from './ask-panel/types'
+import { buildStructuredPrompt, validateFormValues } from './ask-panel/formAwareTools'
+import type { AskResponse, ToolOption, ToolSelectionChange } from './ask-panel/types'
 import './AskPanel.css'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8888'
@@ -22,6 +24,8 @@ export function AskPanel() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedToolIds, setSelectedToolIds] = useState<string[]>([])
+  const [selectedTools, setSelectedTools] = useState<ToolOption[]>([])
+  const [formValues, setFormValues] = useState<Record<string, string>>({})
   const textAreaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
@@ -30,9 +34,18 @@ export function AskPanel() {
     }
   }, [])
 
+  const activeFormTool = useMemo(() => {
+    if (selectedTools.length === 0) {
+      return null
+    }
+
+    const formTools = selectedTools.filter((tool) => tool.requiresUserForm)
+    return formTools.length > 0 ? formTools[formTools.length - 1] : null
+  }, [selectedTools])
+
   const submitDisabled = useMemo(
-    () => isSubmitting || promptInput.trim().length === 0,
-    [isSubmitting, promptInput],
+    () => isSubmitting || (!activeFormTool && promptInput.trim().length === 0),
+    [activeFormTool, isSubmitting, promptInput],
   )
 
   const inputLabel = 'Prompt'
@@ -42,12 +55,25 @@ export function AskPanel() {
     event.preventDefault()
     const trimmedPromptInput = promptInput.trim()
 
-    if (!trimmedPromptInput) {
+    if (!activeFormTool && !trimmedPromptInput) {
       setErrorMessage('Please enter text before calling the API.')
       return
     }
 
-    const outboundPrompt = buildPromptWithSelectedTools(trimmedPromptInput, selectedToolIds)
+    if (activeFormTool) {
+      const formValidationError = validateFormValues(activeFormTool, formValues)
+
+      if (formValidationError) {
+        setErrorMessage(formValidationError)
+        return
+      }
+    }
+
+    const promptBody = activeFormTool
+      ? buildStructuredPrompt(activeFormTool, formValues)
+      : trimmedPromptInput
+
+    const outboundPrompt = buildPromptWithSelectedTools(promptBody, selectedToolIds)
 
     setIsSubmitting(true)
     setErrorMessage(null)
@@ -80,6 +106,7 @@ export function AskPanel() {
 
   function handleClear() {
     setPromptInput('')
+    setFormValues({})
     setSessionId('')
     setResult(null)
     setErrorMessage(null)
@@ -95,19 +122,44 @@ export function AskPanel() {
         <p className="ask-panel__eyebrow">Assistant tools</p>
       </header>
       <form className="ask-panel__form" onSubmit={handleSubmit}>
-        <label htmlFor="promptInput">{inputLabel}</label>
-        <textarea
-          id="promptInput"
-          ref={textAreaRef}
-          name="promptInput"
-          value={promptInput}
-          onChange={(event) => setPromptInput(event.target.value)}
-          rows={7}
-          placeholder={inputPlaceholder}
+        <ToolSelector
           disabled={isSubmitting}
+          onSelectionChange={(selection: ToolSelectionChange) => {
+            const nextFormTools = selection.tools.filter((tool) => tool.requiresUserForm)
+            const nextActiveFormTool =
+              nextFormTools.length > 0 ? nextFormTools[nextFormTools.length - 1] : null
+
+            if (nextActiveFormTool?.id !== activeFormTool?.id) {
+              setFormValues({})
+            }
+
+            setSelectedToolIds(selection.toolIds)
+            setSelectedTools(selection.tools)
+          }}
         />
 
-        <ToolSelector disabled={isSubmitting} onSelectionChange={setSelectedToolIds} />
+        {activeFormTool ? (
+          <FormToolFields
+            tool={activeFormTool}
+            values={formValues}
+            onChange={setFormValues}
+            disabled={isSubmitting}
+          />
+        ) : (
+          <>
+            <label htmlFor="promptInput">{inputLabel}</label>
+            <textarea
+              id="promptInput"
+              ref={textAreaRef}
+              name="promptInput"
+              value={promptInput}
+              onChange={(event) => setPromptInput(event.target.value)}
+              rows={7}
+              placeholder={inputPlaceholder}
+              disabled={isSubmitting}
+            />
+          </>
+        )}
 
         <div className="ask-panel__actions">
           <button type="submit" disabled={submitDisabled}>
