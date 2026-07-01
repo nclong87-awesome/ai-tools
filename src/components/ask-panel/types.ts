@@ -3,6 +3,13 @@ export type AskResponse = {
   response: string
 }
 
+export type AskRequestPayload = {
+  prompt: string
+  provider: string
+  sessionId?: string
+  toolName?: string
+}
+
 export type McpJsonRpcResponse = {
   result?: unknown
   error?: {

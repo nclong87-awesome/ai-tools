@@ -6,7 +6,7 @@ import { AskResult } from './ask-panel/AskResult'
 import { FormToolFields } from './ask-panel/FormToolFields'
 import { ToolSelector } from './ask-panel/ToolSelector'
 import { buildStructuredPrompt, validateFormValues } from './ask-panel/formAwareTools'
-import type { AskResponse, ToolOption, ToolSelectionChange } from './ask-panel/types'
+import type { AskRequestPayload, AskResponse, ToolOption, ToolSelectionChange } from './ask-panel/types'
 import './AskPanel.css'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8888'
@@ -36,22 +36,6 @@ function writeStoredProvider(provider: string): void {
   }
 }
 
-function buildPromptWithSelectedTools(
-  input: string,
-  selectedToolIds: string[],
-  currentSessionId: string,
-): string {
-  if (selectedToolIds.length === 0) {
-    return input
-  }
-
-  if (currentSessionId.trim().length > 0) {
-    return input
-  }
-
-  return `Use tools: ${selectedToolIds.join(', ')}\n\n${input}`
-}
-
 export function AskPanel() {
   const [promptInput, setPromptInput] = useState('')
   const [sessionId, setSessionId] = useState('')
@@ -62,7 +46,6 @@ export function AskPanel() {
   const [result, setResult] = useState<AskResponse | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [selectedToolIds, setSelectedToolIds] = useState<string[]>([])
   const [selectedTools, setSelectedTools] = useState<ToolOption[]>([])
   const [formValues, setFormValues] = useState<Record<string, string>>({})
   const textAreaRef = useRef<HTMLTextAreaElement>(null)
@@ -150,6 +133,14 @@ export function AskPanel() {
     return formTools.length > 0 ? formTools[formTools.length - 1] : null
   }, [selectedTools])
 
+  const selectedToolName = useMemo(() => {
+    if (selectedTools.length === 0) {
+      return ''
+    }
+
+    return selectedTools[selectedTools.length - 1].id;
+  }, [selectedTools])
+
   const submitDisabled = useMemo(
     () =>
       isSubmitting ||
@@ -165,17 +156,37 @@ export function AskPanel() {
     ? 'Loading...'
     : selectedProvider || 'Unavailable'
 
-  async function submitPrompt(prompt: string, sessionIdForRequest: string, provider: string) {
+  async function submitPrompt(
+    prompt: string,
+    sessionIdForRequest: string,
+    provider: string,
+    toolNameForRequest: string,
+  ) {
     setIsSubmitting(true)
     setErrorMessage(null)
 
     try {
+      const payload: AskRequestPayload = {
+        prompt,
+        provider,
+      }
+      const trimmedSessionId = sessionIdForRequest.trim()
+      const trimmedToolName = toolNameForRequest.trim()
+
+      if (trimmedSessionId) {
+        payload.sessionId = trimmedSessionId
+      }
+
+      if (trimmedToolName) {
+        payload.toolName = trimmedToolName
+      }
+
       const response = await fetch(`${apiBaseUrl}/ask`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ prompt, sessionId: sessionIdForRequest, provider }),
+        body: JSON.stringify(payload),
       })
 
       if (!response.ok) {
@@ -223,9 +234,7 @@ export function AskPanel() {
       ? buildStructuredPrompt(activeFormTool, formValues)
       : trimmedPromptInput
 
-    const outboundPrompt = buildPromptWithSelectedTools(promptBody, selectedToolIds, sessionId)
-
-    await submitPrompt(outboundPrompt, sessionId, trimmedProvider)
+    await submitPrompt(promptBody, sessionId, trimmedProvider, selectedToolName)
   }
 
   async function handleQuickAction(prompt: string) {
@@ -243,7 +252,7 @@ export function AskPanel() {
       return
     }
 
-    await submitPrompt(trimmedPrompt, sessionId, trimmedProvider)
+    await submitPrompt(trimmedPrompt, sessionId, trimmedProvider, selectedToolName)
   }
 
   function handleClear() {
@@ -275,7 +284,6 @@ export function AskPanel() {
               setFormValues({})
             }
 
-            setSelectedToolIds(selection.toolIds)
             setSelectedTools(selection.tools)
           }}
         />
