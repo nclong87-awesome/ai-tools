@@ -356,6 +356,26 @@
   min-height: 160px;
 }
 
+.ask-panel__prompt-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ask-panel__prompt-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--text-h) 82%, #fff 18%);
+}
+
+.ask-panel__prompt-toggle input {
+  margin: 0;
+}
+
 .ask-panel__suggested-prompts {
   display: grid;
   gap: 10px;
@@ -364,6 +384,11 @@
   border-radius: 14px;
   border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border) 82%);
   background: color-mix(in srgb, var(--accent-bg) 20%, #fff 80%);
+}
+
+.ask-panel__suggested-prompts-shell {
+  display: grid;
+  gap: 8px;
 }
 
 .ask-panel__suggested-prompts-header {

@@ -10,8 +10,9 @@ const selectedToolsStorageKey = 'ask-panel:selected-tools'
 
 type ToolSelectorProps = {
   disabled: boolean
+  selectedToolIds: string[]
+  onSelectedToolIdsChange: (toolIds: string[]) => void
   onSelectionChange: (selection: ToolSelectionChange) => void
-  selectionPreset?: string[] | null
 }
 
 function readLastUsedTool(): string | null {
@@ -22,25 +23,6 @@ function readLastUsedTool(): string | null {
   return window.localStorage.getItem(lastUsedFeatureStorageKey)
 }
 
-function readSelectedTools(): string[] {
-  if (typeof window === 'undefined') {
-    return []
-  }
-
-  const stored = window.localStorage.getItem(selectedToolsStorageKey)
-
-  if (!stored) {
-    return []
-  }
-
-  try {
-    const parsed = JSON.parse(stored) as unknown
-    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : []
-  } catch {
-    return []
-  }
-}
-
 function saveSelectedTools(toolIds: string[]) {
   if (typeof window === 'undefined') {
     return
@@ -49,11 +31,15 @@ function saveSelectedTools(toolIds: string[]) {
   window.localStorage.setItem(selectedToolsStorageKey, JSON.stringify(toolIds))
 }
 
-export function ToolSelector({ disabled, onSelectionChange, selectionPreset = null }: ToolSelectorProps) {
+export function ToolSelector({
+  disabled,
+  selectedToolIds,
+  onSelectedToolIdsChange,
+  onSelectionChange,
+}: ToolSelectorProps) {
   const [toolOptions, setToolOptions] = useState<ToolOption[]>([])
   const [toolGroups, setToolGroups] = useState<ToolGroup[]>([])
   const [isLoadingTools, setIsLoadingTools] = useState(true)
-  const [selectedToolIds, setSelectedToolIds] = useState<string[]>(() => readSelectedTools())
   const [isToolMenuOpen, setIsToolMenuOpen] = useState(false)
   const [toolFilter, setToolFilter] = useState('')
   const [expandedGroupIds, setExpandedGroupIds] = useState<string[]>([])
@@ -72,18 +58,11 @@ export function ToolSelector({ disabled, onSelectionChange, selectionPreset = nu
         const loadedTools = loadedCatalog.toolOptions
         setToolOptions(loadedTools)
         setToolGroups(loadedCatalog.toolGroups)
-
-        const availableToolIdSet = new Set(loadedTools.map((tool) => tool.id))
         const storedTool = readLastUsedTool()
         const nextLastUsedToolId =
           storedTool && loadedTools.some((tool) => tool.id === storedTool)
             ? storedTool
             : loadedTools[0]?.id
-
-        const nextSelectedToolIds = readSelectedTools().filter((toolId) => availableToolIdSet.has(toolId))
-
-        setSelectedToolIds(nextSelectedToolIds)
-        saveSelectedTools(nextSelectedToolIds)
 
         if (typeof window !== 'undefined' && nextLastUsedToolId) {
           window.localStorage.setItem(lastUsedFeatureStorageKey, nextLastUsedToolId)
@@ -122,21 +101,23 @@ export function ToolSelector({ disabled, onSelectionChange, selectionPreset = nu
   }, [onSelectionChange, selectedToolIds, selectedTools])
 
   useEffect(() => {
-    if (!selectionPreset) {
+    if (toolOptions.length === 0) {
       return
     }
 
-    const timeoutId = window.setTimeout(() => {
-      const availableToolIdSet = new Set(toolOptions.map((tool) => tool.id))
-      const nextSelectedToolIds = selectionPreset.filter((toolId) => availableToolIdSet.has(toolId))
-      setSelectedToolIds(nextSelectedToolIds)
-      saveSelectedTools(nextSelectedToolIds)
-    }, 0)
+    const availableToolIdSet = new Set(toolOptions.map((tool) => tool.id))
+    const normalizedSelectedToolIds = selectedToolIds.filter((toolId) => availableToolIdSet.has(toolId))
 
-    return () => {
-      window.clearTimeout(timeoutId)
+    if (normalizedSelectedToolIds.length === selectedToolIds.length) {
+      return
     }
-  }, [selectionPreset, toolOptions])
+
+    onSelectedToolIdsChange(normalizedSelectedToolIds)
+  }, [onSelectedToolIdsChange, selectedToolIds, toolOptions])
+
+  useEffect(() => {
+    saveSelectedTools(selectedToolIds)
+  }, [selectedToolIds])
 
   const filteredTools = useMemo(() => {
     const normalizedFilter = toolFilter.trim().toLowerCase()
@@ -179,20 +160,16 @@ export function ToolSelector({ disabled, onSelectionChange, selectionPreset = nu
   }, [selectedToolIds, toolGroups])
 
   function handleToggleToolSelection(toolId: string) {
-    setSelectedToolIds((currentToolIds) => {
-      const isAlreadySelected = currentToolIds.includes(toolId)
-      const nextToolIds = isAlreadySelected
-        ? currentToolIds.filter((id) => id !== toolId)
-        : [...currentToolIds, toolId]
+    const isAlreadySelected = selectedToolIds.includes(toolId)
+    const nextToolIds = isAlreadySelected
+      ? selectedToolIds.filter((id) => id !== toolId)
+      : [...selectedToolIds, toolId]
 
-      saveSelectedTools(nextToolIds)
-      if (!isAlreadySelected) {
-        setIsToolMenuOpen(false)
-        setToolFilter('')
-      }
-
-      return nextToolIds
-    })
+    onSelectedToolIdsChange(nextToolIds)
+    if (!isAlreadySelected) {
+      setIsToolMenuOpen(false)
+      setToolFilter('')
+    }
 
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(lastUsedFeatureStorageKey, toolId)
@@ -200,11 +177,7 @@ export function ToolSelector({ disabled, onSelectionChange, selectionPreset = nu
   }
 
   function handleRemoveSelectedTool(toolId: string) {
-    setSelectedToolIds((currentToolIds) => {
-      const nextToolIds = currentToolIds.filter((id) => id !== toolId)
-      saveSelectedTools(nextToolIds)
-      return nextToolIds
-    })
+    onSelectedToolIdsChange(selectedToolIds.filter((id) => id !== toolId))
   }
 
   function handleToggleToolMenu() {

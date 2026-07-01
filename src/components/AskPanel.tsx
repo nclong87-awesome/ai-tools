@@ -2,10 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faGear } from '@fortawesome/free-solid-svg-icons'
-import { useQuery } from '@tanstack/react-query'
-import { useDebounce } from 'use-debounce'
 import { AskResult } from './ask-panel/AskResult'
 import { FormToolFields } from './ask-panel/FormToolFields'
+import { SuggestedPrompts } from './ask-panel/SuggestedPrompts'
 import { ToolSelector } from './ask-panel/ToolSelector'
 import { buildStructuredPrompt, validateFormValues } from './ask-panel/formAwareTools'
 import type { AskRequestPayload, AskResponse, ToolOption, ToolSelectionChange } from './ask-panel/types'
@@ -13,11 +12,7 @@ import './AskPanel.css'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8888'
 const providerStorageKey = 'askPanel.selectedProvider'
-
-type SuggestedPrompt = {
-  prompt: string
-  toolName: string | null
-}
+const selectedToolsStorageKey = 'ask-panel:selected-tools'
 
 function readStoredProvider(): string {
   try {
@@ -43,22 +38,19 @@ function writeStoredProvider(provider: string): void {
   }
 }
 
-function toSuggestedPromptLabel(prompt: string): string {
-  const collapsed = prompt.replace(/\s+/g, ' ').trim()
+function readStoredSelectedToolIds(): string[] {
+  try {
+    const value = window.localStorage.getItem(selectedToolsStorageKey)
 
-  if (collapsed.length <= 110) {
-    return collapsed
+    if (!value) {
+      return []
+    }
+
+    const parsed = JSON.parse(value) as unknown
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : []
+  } catch {
+    return []
   }
-
-  return `${collapsed.slice(0, 107).trimEnd()}...`
-}
-
-function toToolNameLabel(toolName: string): string {
-  return toolName
-    .split(/[_-]+/)
-    .filter((part) => part.length > 0)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ')
 }
 
 export function AskPanel() {
@@ -71,11 +63,11 @@ export function AskPanel() {
   const [result, setResult] = useState<AskResponse | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [selectedToolIds, setSelectedToolIds] = useState<string[]>(() => readStoredSelectedToolIds())
   const [selectedTools, setSelectedTools] = useState<ToolOption[]>([])
   const [formValues, setFormValues] = useState<Record<string, string>>({})
   const [hasPromptFocusStarted, setHasPromptFocusStarted] = useState(false)
-  const [isSuggestionSelectionActive, setIsSuggestionSelectionActive] = useState(false)
-  const [selectionPreset, setSelectionPreset] = useState<string[] | null>(null)
+  const [isSuggestedPromptsVisible, setIsSuggestedPromptsVisible] = useState(false)
   const textAreaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
@@ -168,87 +160,6 @@ export function AskPanel() {
 
     return selectedTools[selectedTools.length - 1].id
   }, [selectedTools])
-
-  const [debouncedPromptInput] = useDebounce(promptInput, 600)
-  const shouldFetchSuggestedPrompts =
-    !activeFormTool && hasPromptFocusStarted && !isSuggestionSelectionActive && debouncedPromptInput.length >= 5
-
-  const suggestedPromptsQuery = useQuery({
-    queryKey: ['suggested-prompts', selectedToolName, debouncedPromptInput],
-    enabled: shouldFetchSuggestedPrompts,
-    staleTime: 30_000,
-    refetchOnWindowFocus: false,
-    queryFn: async ({ signal }) => {
-      const params = new URLSearchParams()
-      const trimmedToolName = selectedToolName.trim()
-
-      params.set('limit', '3')
-
-      if (trimmedToolName) {
-        params.set('toolName', trimmedToolName)
-      }
-
-      params.set('text', debouncedPromptInput)
-
-      const response = await fetch(`${apiBaseUrl}/suggested-prompts?${params.toString()}`, {
-        signal,
-      })
-
-      if (!response.ok) {
-        throw new Error(`Request failed with status ${response.status}`)
-      }
-
-      const data = (await response.json()) as { prompts?: unknown }
-
-      if (!Array.isArray(data.prompts)) {
-        return []
-      }
-
-      const normalizedPrompts = data.prompts
-        .map((item) => {
-          if (typeof item === 'string') {
-            const normalizedPrompt = item.trim()
-
-            if (!normalizedPrompt) {
-              return null
-            }
-
-            return {
-              prompt: normalizedPrompt,
-              toolName: null,
-            } satisfies SuggestedPrompt
-          }
-
-          if (!item || typeof item !== 'object') {
-            return null
-          }
-
-          const rawItem = item as { prompt?: unknown; toolName?: unknown }
-          const normalizedPrompt = typeof rawItem.prompt === 'string' ? rawItem.prompt.trim() : ''
-
-          if (!normalizedPrompt) {
-            return null
-          }
-
-          const normalizedToolName =
-            typeof rawItem.toolName === 'string' && rawItem.toolName.trim().length > 0
-              ? rawItem.toolName.trim()
-              : null
-
-          return {
-            prompt: normalizedPrompt,
-            toolName: normalizedToolName,
-          } satisfies SuggestedPrompt
-        })
-        .filter((item): item is SuggestedPrompt => item !== null)
-        .slice(0, 3)
-
-      return normalizedPrompts
-    },
-  })
-
-  const suggestedPrompts = suggestedPromptsQuery.data ?? []
-  const isLoadingSuggestedPrompts = shouldFetchSuggestedPrompts && suggestedPromptsQuery.isFetching
 
   const submitDisabled = useMemo(
     () =>
@@ -368,8 +279,6 @@ export function AskPanel() {
     setPromptInput('')
     setFormValues({})
     setHasPromptFocusStarted(false)
-    setIsSuggestionSelectionActive(false)
-    setSelectionPreset([])
     setSessionId('')
     setResult(null)
     setErrorMessage(null)
@@ -379,13 +288,10 @@ export function AskPanel() {
     }
   }
 
-  const showSuggestedPrompts = !activeFormTool && (isLoadingSuggestedPrompts || suggestedPrompts.length > 0)
-
-  function applySuggestedPrompt(item: SuggestedPrompt) {
-    setIsSuggestionSelectionActive(true)
+  function applySuggestedPrompt(item: { prompt: string; toolName: string | null }) {
     setPromptInput(item.prompt)
     setErrorMessage(null)
-    setSelectionPreset(item.toolName ? [item.toolName] : [])
+    setSelectedToolIds(item.toolName ? [item.toolName] : [])
 
     if (textAreaRef.current) {
       textAreaRef.current.focus()
@@ -400,7 +306,8 @@ export function AskPanel() {
       <form className="ask-panel__form" onSubmit={handleSubmit}>
         <ToolSelector
           disabled={isSubmitting}
-          selectionPreset={selectionPreset}
+          selectedToolIds={selectedToolIds}
+          onSelectedToolIdsChange={setSelectedToolIds}
           onSelectionChange={(selection: ToolSelectionChange) => {
             const nextFormTools = selection.tools.filter((tool) => tool.requiresUserForm)
             const nextActiveFormTool =
@@ -411,10 +318,6 @@ export function AskPanel() {
             }
 
             setSelectedTools(selection.tools)
-
-            if (selectionPreset !== null) {
-              setSelectionPreset(null)
-            }
           }}
         />
 
@@ -427,64 +330,41 @@ export function AskPanel() {
           />
         ) : (
           <>
-            <label htmlFor="promptInput">{inputLabel}</label>
+            <div className="ask-panel__prompt-label-row">
+              <label htmlFor="promptInput">{inputLabel}</label>
+              <label htmlFor="showSuggestedPrompts" className="ask-panel__prompt-toggle">
+                <input
+                  id="showSuggestedPrompts"
+                  type="checkbox"
+                  checked={isSuggestedPromptsVisible}
+                  onChange={(event) => setIsSuggestedPromptsVisible(event.target.checked)}
+                  disabled={isSubmitting}
+                />
+                Show suggestions
+              </label>
+            </div>
             <textarea
               id="promptInput"
               ref={textAreaRef}
               name="promptInput"
               value={promptInput}
-              onChange={(event) => {
-                const nextPromptValue = event.target.value
-
-                if (isSuggestionSelectionActive && nextPromptValue.length > promptInput.length) {
-                  setIsSuggestionSelectionActive(false)
-                }
-
-                setPromptInput(nextPromptValue)
-              }}
+              onChange={(event) => setPromptInput(event.target.value)}
               onFocus={() => setHasPromptFocusStarted(true)}
               rows={7}
               placeholder={inputPlaceholder}
               disabled={isSubmitting}
             />
 
-            {showSuggestedPrompts ? (
-              <section className="ask-panel__suggested-prompts" aria-label="Suggested prompts" aria-live="polite">
-                <div className="ask-panel__suggested-prompts-header">
-                  <p className="ask-panel__suggested-prompts-title">Suggested prompts</p>
-                  <p className="ask-panel__suggested-prompts-subtitle">Pick one to fill the prompt box</p>
-                </div>
-                {isLoadingSuggestedPrompts ? (
-                  <p className="ask-panel__suggested-prompts-hint">Loading suggestions...</p>
-                ) : (
-                  <div className="ask-panel__suggested-prompts-list">
-                    {suggestedPrompts.map((suggestedPrompt, index) => (
-                      <button
-                        key={`${suggestedPrompt.prompt}:${suggestedPrompt.toolName ?? 'none'}:${index}`}
-                        type="button"
-                        className="ask-panel__suggested-prompt"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => applySuggestedPrompt(suggestedPrompt)}
-                        disabled={isSubmitting}
-                        title={suggestedPrompt.prompt}
-                      >
-                        <span className="ask-panel__suggested-prompt-icon" aria-hidden="true">
-                          ↳
-                        </span>
-                        <span className="ask-panel__suggested-prompt-content">
-                          <span className="ask-panel__suggested-prompt-text">
-                            {toSuggestedPromptLabel(suggestedPrompt.prompt)}
-                          </span>
-                          <span className="ask-panel__suggested-prompt-meta">
-                            {suggestedPrompt.toolName ? toToolNameLabel(suggestedPrompt.toolName) : 'No tool'}
-                          </span>
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </section>
-            ) : null}
+            <SuggestedPrompts
+              apiBaseUrl={apiBaseUrl}
+              promptInput={promptInput}
+              hasPromptFocusStarted={hasPromptFocusStarted}
+              activeFormTool={activeFormTool}
+              selectedToolName={selectedToolName}
+              isVisible={isSuggestedPromptsVisible}
+              disabled={isSubmitting}
+              onApplySuggestion={applySuggestedPrompt}
+            />
           </>
         )}
 
