@@ -11,6 +11,7 @@ const selectedToolsStorageKey = 'ask-panel:selected-tools'
 type ToolSelectorProps = {
   disabled: boolean
   onSelectionChange: (selection: ToolSelectionChange) => void
+  selectionPreset?: string[] | null
 }
 
 function readLastUsedTool(): string | null {
@@ -48,7 +49,7 @@ function saveSelectedTools(toolIds: string[]) {
   window.localStorage.setItem(selectedToolsStorageKey, JSON.stringify(toolIds))
 }
 
-export function ToolSelector({ disabled, onSelectionChange }: ToolSelectorProps) {
+export function ToolSelector({ disabled, onSelectionChange, selectionPreset = null }: ToolSelectorProps) {
   const [toolOptions, setToolOptions] = useState<ToolOption[]>([])
   const [toolGroups, setToolGroups] = useState<ToolGroup[]>([])
   const [isLoadingTools, setIsLoadingTools] = useState(true)
@@ -119,6 +120,23 @@ export function ToolSelector({ disabled, onSelectionChange }: ToolSelectorProps)
       tools: selectedTools,
     })
   }, [onSelectionChange, selectedToolIds, selectedTools])
+
+  useEffect(() => {
+    if (!selectionPreset) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      const availableToolIdSet = new Set(toolOptions.map((tool) => tool.id))
+      const nextSelectedToolIds = selectionPreset.filter((toolId) => availableToolIdSet.has(toolId))
+      setSelectedToolIds(nextSelectedToolIds)
+      saveSelectedTools(nextSelectedToolIds)
+    }, 0)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [selectionPreset, toolOptions])
 
   const filteredTools = useMemo(() => {
     const normalizedFilter = toolFilter.trim().toLowerCase()
