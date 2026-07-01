@@ -6,6 +6,7 @@ export type AskResponse = {
 export type AskRequestPayload = {
   prompt: string
   provider: string
+  model: string
   sessionId?: string
   toolName?: string
 }

@@ -638,6 +638,23 @@ textarea.ask-panel__tool-form-input {
   font: inherit;
 }
 
+.ask-panel__model-select-inline {
+  max-width: min(42vw, 240px);
+  box-sizing: border-box;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+  padding: 8px 10px;
+  font: inherit;
+}
+
+.ask-panel__availability-warning {
+  margin: 6px 0 0;
+  font-size: 0.84rem;
+  color: #985f00;
+}
+
 .ask-panel__error {
   margin-top: 14px;
   border-radius: 10px;
